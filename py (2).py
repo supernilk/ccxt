@@ -34,3 +34,11 @@ print("Texto blanco sobre fondo negro")
 print(Style.DIM + Fore.WHITE + "Intensidad baja")
 print(Style.NORMAL + "Intensidad normal")
 print(Style.BRIGHT + "Intensidad alta")
+
+# Obtener una lista de todos los exchanges disponibles en ccxt
+exchanges = ccxt.exchanges
+
+# Mostrar los nombres de los exchanges
+print("Exchanges disponibles en ccxt:")
+for exchange in exchanges:
+    print(exchange)
