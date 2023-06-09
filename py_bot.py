@@ -6,6 +6,9 @@ from random import randint
 import sys
 from pprint import pprint
 import time
+from time import gmtime, strftime
+import traceback
+
 
 root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.append(root + '/python')
@@ -20,6 +23,14 @@ print('CCXT Version:', ccxt.__version__)
 #                                                                                 ##                 
 # Disclaimer: this bot is for educational purposes only. Use at your own risk.    ##
 ####################################################################################
+
+########################## Requerimientos ##########################################
+# pyenv local 3.8.8
+# python -m venv venv
+# .\venv\Scripts\activate
+# Linux: source venv/bin/activate
+# pip freeze
+
 
 # bot options
 wait_time = 5 # seconds to wait between each check
@@ -66,12 +77,17 @@ order_sizes = {
 async def get_last_prices():
     tasks = [ exchange.fetch_tickers(symbols) for exchange in exchanges ]
     results = await asyncio.gather(*tasks)
+    
+    for exchange in exchanges:
+        await exchange.close()
+    
     return results
 
 async def bot():
     prices = await get_last_prices()
     for symbol in symbols:
         ms = int(time.time() * 1000)
+        mss = strftime("%d %b %Y %H:%M:%S ", gmtime())
 
         symbol_prices = [ exchange_prices[symbol]['last'] for exchange_prices in prices ]
 
@@ -86,6 +102,7 @@ async def bot():
         # calculate min exchange taker fee
         # warning: you need to manually check if there are special campaign fees 
         min_exchange_fee = min_exchange.fees['trading']['taker']
+
         min_fee = order_size * min_price * min_exchange_fee
 
         # calculate max exchange taker fee
@@ -98,36 +115,50 @@ async def bot():
 
         if (profit > 0): # not taking into account slippage or order book depth
             print(ms, symbol, "profit:", profit, "Buy", min_exchange.id, min_price, "Sell", max_exchange.id, max_price)
-            
+        
             if not paper_trading:
-                buy_min = min_exchange.create_market_buy_order(symbol, order_size)
-                sell_max = max_exchange.create_market_sell_order(symbol, order_size)
-                orders = await asyncio.gather(buy_min, sell_max) # execute them "simultaneously"
-                print("Orders executed successfully")
+                    buy_min = min_exchange.create_market_buy_order(symbol, order_size)
+                    sell_max = max_exchange.create_market_sell_order(symbol, order_size)
+                    orders = await asyncio.gather(buy_min, sell_max) # se ejecutan simultáneamente
+                    print("Órdenes ejecutadas con éxito")
         else:
-            print(str(ms), symbol, "no arbitrage opportunity")
+            print(str(mss), symbol, "sin oportunidad de arbitraje")
 
 async def check_requirements():
-    print("Checking if exchanges support fetchTickers and the symbols we want to trade")
-    for exchange in exchanges:
-        if not exchange.has['fetchTickers']:
-            print(exchange.id, "does not support fetchTickers")
-            sys.exit()
-        await exchange.load_markets()
-        
-        for symbol in symbols:
-            if symbol not in exchange.markets:
-                print(exchange.id, "does not support", symbol)
-                sys.exit()
+    try:
+        print("Comprobando si los intercambios admiten fetchTickers y los símbolos que queremos intercambiar")
+
+        for exchange in exchanges:
+            pprint (exchange)
+            if not exchange.has['fetchTickers']:
+                print(exchange.id, "no es compatible con fetchTickers")
+
+            await exchange.load_markets()
+            
+            for symbol in symbols:
+                if symbol not in exchange.markets:
+                    print (symbol,"..........[Error!]")        
+                else:
+                    print (symbol,"..............[ok]")
+
+
+    except Exception as e:
+        print(f'Fallado con: {e}')
 
 async def main():
-    await check_requirements()
-    print("Starting bot")
-    while True:
-        try:
-            await bot()
-        except e:
-            print("Exception: ", e)
-        await asyncio.sleep(wait_time)
+    #await check_requirements()
+    print("Despertando el Bot")
+    
+    #while True:
+        
+    try:
+        print ("*******************")
+        await bot()
+
+        print ("fin")
+    
+    except Exception as e:
+        print(f'Fallado con: {e}')
+        print(traceback.format_exc())
 
 asyncio.run(main())

@@ -1,2 +1,0 @@
-# ccxt
-arbitraje con ccxt
